@@ -118,7 +118,6 @@ func deleteCluster(clusterPath string) error {
 }
 
 func main() {
-	fmt.Println("Инициализация")
 	cluster1Path := "D:\\TestDir\\Server_A"
 	cluster2Path := "D:\\TestDir\\Server_B"
 

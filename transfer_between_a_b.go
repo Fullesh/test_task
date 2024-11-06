@@ -239,7 +239,6 @@ func TransferData() {
 	}
 
 	simulateCrash := false
-	fmt.Println("Hello World")
 	var simulateCrashResponse string
 	fmt.Print("Хотите ли вы иммитировать падние сервера А? (y/n): ")
 	fmt.Scanln(&simulateCrashResponse)
