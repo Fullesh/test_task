@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// Функция для декдоирования стандартного вывода из окна PowerShell
 func decodeOutput(ouput []byte) (string, error) {
 	reader := transform.NewReader(bytes.NewReader(ouput), charmap.Windows1251.NewDecoder())
 	decodeBytes, err := ioutil.ReadAll(reader)
@@ -20,6 +21,7 @@ func decodeOutput(ouput []byte) (string, error) {
 	return string(decodeBytes), nil
 }
 
+// Функция для создания кластера. clusterPath - путь к кластеру
 func createCluser(clusterPath string) error {
 	cmd := exec.Command("initdb", "-D", clusterPath, "--username=postgres")
 	output, err := cmd.Output()
@@ -30,6 +32,7 @@ func createCluser(clusterPath string) error {
 	return nil
 }
 
+// Функция для проверки существует ли кластер. clusterPath - путь к кластеру
 func ClusterExsists(clusterPath string) bool {
 	info, err := os.Stat(clusterPath)
 	if os.IsNotExist(err) {
@@ -38,6 +41,7 @@ func ClusterExsists(clusterPath string) bool {
 	return info.IsDir()
 }
 
+// Функция для проверки запущен ли кластер на данный момент. clusterPath - путь к кластеру
 func isClusterRunning(clusterPath string) (bool, error) {
 	if !ClusterExsists(clusterPath) {
 		return false, fmt.Errorf("Невозможно проверить статус сервера: он не существует по пути %s \n", clusterPath)
@@ -58,6 +62,7 @@ func isClusterRunning(clusterPath string) (bool, error) {
 	return true, nil
 }
 
+// Функция для запуска кластера в работу. clusterPath - путь к кластеру. host - хост(localhost). port - порт(33555,33556)
 func StartCluster(clusterPath, host string, port int) error {
 	if !ClusterExsists(clusterPath) {
 		return fmt.Errorf("Невозможно запустить сервер: он не существует по пути %s", clusterPath)
@@ -77,6 +82,7 @@ func StartCluster(clusterPath, host string, port int) error {
 	return nil
 }
 
+// Функция для остановки кластера. clusterPath - путь к кластеру. host - хост(localhost). port - порт(33555, 33556)
 func StopCluster(clusterPath, host string, port int) error {
 	if !ClusterExsists(clusterPath) {
 		return fmt.Errorf("Невозможно остановить сервер: он не существует по пути %s", clusterPath)
@@ -97,6 +103,7 @@ func StopCluster(clusterPath, host string, port int) error {
 	return nil
 }
 
+// Функция для удаления кластера. clusterPath - путь к кластеру.
 func deleteCluster(clusterPath string) error {
 	if !ClusterExsists(clusterPath) {
 		return fmt.Errorf("Невозможно удалить сервер: он не существует по пути: %s", clusterPath)
@@ -118,8 +125,8 @@ func deleteCluster(clusterPath string) error {
 }
 
 func main() {
-	cluster1Path := "D:\\TestDir\\Server_A"
-	cluster2Path := "D:\\TestDir\\Server_B"
+	cluster1Path := "C:\\TestDir\\Server_A"
+	cluster2Path := "C:\\TestDir\\Server_B"
 
 	for {
 		fmt.Println("\n Что вы хотите сделать?")
@@ -140,28 +147,28 @@ func main() {
 		}
 		switch choice {
 		case 1:
-			if ClusterExsists(cluster1Path) {
+			if ClusterExsists(cluster1Path) { // Проверяем существует ли кластер А
 				fmt.Printf("Сервер А существует по пути %s \n", cluster1Path)
 			} else {
 				fmt.Printf("Сервер А не существует по пути %s \n", cluster1Path)
 			}
-			if ClusterExsists(cluster2Path) {
+			if ClusterExsists(cluster2Path) { // Проверяем существует ли кластер Б
 				fmt.Printf("Сервер Б существует по пути %s \n", cluster2Path)
 			} else {
 				fmt.Printf("Сервер Б не существует по пути %s \n", cluster2Path)
 			}
 		case 2:
 			if err := deleteCluster(cluster1Path); err != nil {
-				fmt.Println(err)
+				fmt.Println(err) // Удаляем кластер А если не возникает ошибка
 			}
 			if err := deleteCluster(cluster2Path); err != nil {
-				fmt.Println(err)
+				fmt.Println(err) // Удаляем кластер Б если не возникает ошибка
 			}
 		case 3:
 			if ClusterExsists(cluster1Path) {
-				fmt.Println("Сервер А существует, пропускаем \n")
+				fmt.Println("Сервер А существует, пропускаем \n") // Проверяем существует ли кластер А. И если да, то пропускаем создание
 			} else {
-				fmt.Printf("Сервер А не существует, создаём \n")
+				fmt.Printf("Сервер А не существует, создаём \n") // Иначе создаём
 				if err := createCluser(cluster1Path); err != nil {
 					fmt.Println(err)
 					return
@@ -169,9 +176,9 @@ func main() {
 			}
 
 			if ClusterExsists(cluster2Path) {
-				fmt.Println("Сервер Б существует, пропускаем \n")
+				fmt.Println("Сервер Б существует, пропускаем \n") // Проверяем существует ли кластер Б. И если да, то пропускаем создание
 			} else {
-				fmt.Println("Сервер Б не существует, создаём \n")
+				fmt.Println("Сервер Б не существует, создаём \n") // Иначе создаём
 				if err := createCluser(cluster2Path); err != nil {
 					fmt.Println(err)
 					return
@@ -179,22 +186,22 @@ func main() {
 			}
 		case 4:
 			if err := StartCluster(cluster1Path, "localhost", 33555); err != nil {
-				fmt.Println(err)
+				fmt.Println(err) // Запускаем кластер А если не возникает ошибок
 			}
 			if err := StartCluster(cluster2Path, "localhost", 33556); err != nil {
-				fmt.Println(err)
+				fmt.Println(err) // Запускаем кластер Б если не возникает ошибок
 			}
 		case 5:
 			if err := StopCluster(cluster1Path, "localhost", 33555); err != nil {
-				fmt.Println(err)
+				fmt.Println(err) // Останавливаем кластер А если не возникает ошибок
 			}
 			if err := StopCluster(cluster2Path, "localhost", 33556); err != nil {
-				fmt.Println(err)
+				fmt.Println(err) // Останавливаем кластер Б если не возникает ошибок
 			}
 		case 6:
 			running1, err := isClusterRunning(cluster1Path)
 			if err != nil {
-				fmt.Printf("Ошибка при проверке статуса сервера А: %v\n", err)
+				fmt.Printf("Ошибка при проверке статуса сервера А: %v\n", err) // Ловим ошибки при проверке статуса кластера А
 			} else if running1 {
 				fmt.Println("Сервер А запущен.")
 			} else {
@@ -202,19 +209,19 @@ func main() {
 			}
 			running2, err := isClusterRunning(cluster2Path)
 			if err != nil {
-				fmt.Printf("Ошибка при проверке статуса сервера Б: %v\n", err)
+				fmt.Printf("Ошибка при проверке статуса сервера Б: %v\n", err) // Ловим ошибки при проверке статуса кластера Б
 			} else if running2 {
 				fmt.Println("Сервер Б запущен.")
 			} else {
 				fmt.Println("Сервер Б не запущен. ")
 			}
 		case 7:
-			TransferData()
+			TransferData() // Запускаем TransferData из файла transfer_between_a_b.go
 		case 8:
-			fmt.Println("Выходим...")
+			fmt.Println("Выходим...") // Выходим
 			return
 		default:
-			fmt.Println("Некорректный выбор, попробуйте снова.")
+			fmt.Println("Некорректный выбор, попробуйте снова.") // Если совсем не тот выбор, то говорим о том, что некорректный
 		}
 	}
 

@@ -9,20 +9,23 @@ import (
 	"sync"
 )
 
-func enablePreparedTransaction(server string) error {
+// Функция для изменения переменной max_prepared_transactions. server - данные для подключения к серверам
+func setPreparedTransaction(server string) error {
+
+	// Открываем подключение к серверу
 	db, err := sql.Open("postgres", server)
 	if err != nil {
 		return fmt.Errorf("Ошибка подключения к серверу %s: %v", server, err)
 	}
 	defer db.Close()
 
-	// Set max_prepared_transactions to 8
+	// Устанавливаем переменную max_prepared_transactions на 8
 	_, err = db.Exec("ALTER SYSTEM SET max_prepared_transactions = 8")
 	if err != nil {
 		return fmt.Errorf("Ошибка изменения max_prepared_transactions на сервере %s: %v", server, err)
 	}
 
-	// Reload the PostgreSQL configuration
+	// Перезагружаем конфигурацию
 	_, err = db.Exec("SELECT pg_reload_conf()")
 	if err != nil {
 		return fmt.Errorf("Ошибка перезагрузки конфигурации на сервере %s: %v", server, err)
@@ -32,25 +35,32 @@ func enablePreparedTransaction(server string) error {
 	return nil
 }
 
+// Функция для перезапуска серверов после изменения переменной max_prepared_transactions
 func restartPostgresServer() error {
-	cmd := exec.Command("pg_ctl", "-D", "D:\\TestDir\\Server_A", "stop")
+	// Стоп сервера А
+	cmd := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_A", "stop")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("Ошибка при остановке сервер: %v, вывод: %s", err, output)
 	}
-	cmdB := exec.Command("pg_ctl", "-D", "D:\\TestDir\\Server_B", "stop")
+
+	// Стоп сервера Б
+	cmdB := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_B", "stop")
 	outputB, err := cmdB.CombinedOutput()
 	if err != nil {
 		fmt.Printf("Ошибка при остановке сервер: %v, вывод: %s", err, outputB)
 	}
 	fmt.Println("Сервера успешно остановлены")
-	cmdSA := exec.Command("pg_ctl", "-D", "D:\\TestDir\\Server_A", "-o", "-p33555", "start")
+
+	// Старт сервера А
+	cmdSA := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_A", "-o", "-p33555", "start")
 	if err := cmdSA.Start(); err != nil {
 		return fmt.Errorf("Ошибка при запуске сервера: %v", err)
 	}
 	fmt.Println("Сервер А успешно поднялся")
 
-	cmdSB := exec.Command("pg_ctl", "-D", "D:\\TestDir\\Server_B", "-o", "-p33556", "start")
+	// Старт сервера Б
+	cmdSB := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_B", "-o", "-p33556", "start")
 	if err := cmdSB.Start(); err != nil {
 		return fmt.Errorf("Ошибка при запуске сервера: %v", err)
 	}
@@ -59,6 +69,7 @@ func restartPostgresServer() error {
 	return nil
 }
 
+// Создание БД на серверах А и Б
 func createDataBase(server string) error {
 	db, err := sql.Open("postgres", server)
 	if err != nil {
@@ -74,6 +85,7 @@ func createDataBase(server string) error {
 	return nil
 }
 
+// Создание таблиц на серверах А и Б
 func createTables(server string) error {
 	// Connect to the newly created database
 	db, err := sql.Open("postgres", server+" dbname=database")
@@ -91,6 +103,7 @@ func createTables(server string) error {
 	return nil
 }
 
+// Наполнение данными только таблицы сервера А
 func dataFill(server string, wg *sync.WaitGroup) {
 	db, err := sql.Open("postgres", server+" dbname=database")
 	if err != nil {
@@ -98,7 +111,7 @@ func dataFill(server string, wg *sync.WaitGroup) {
 	}
 	defer db.Close()
 
-	// Check if the server is the one with port 33555
+	// Проверяем, что наполняем только сервер А
 	if server == "user=postgres host=localhost port=33555 sslmode=disable" {
 		for i := 1; i < 10; i++ {
 			_, err = db.Exec("INSERT INTO Data (value) VALUES ($1)", fmt.Sprintf("Value %d", i))
@@ -137,7 +150,7 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 		log.Fatalf("Ошибка начала транзакции на сервере B: %v", err)
 	}
 
-	// Фаза 1: Подготовка передачи данных
+	// Подготовка передачи данных
 	rows, err := txA.Query("SELECT id, value FROM Data")
 	if err != nil {
 		txA.Rollback()
@@ -179,7 +192,7 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 		log.Fatalf("Ошибка подготовки транзакции на сервере B: %v", err)
 	}
 
-	// Симуляция падения сервера A
+	// Симуляция падения сервера A (не доделано)
 	simulateCrash := false
 	if simulateCrash {
 		log.Println("Симуляция падения сервера A")
@@ -188,7 +201,7 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 		return
 	}
 
-	// Фаза 2: Коммит подготовленных транзакций
+	// Коммит подготовленных транзакций
 	if _, err := dbA.Exec("COMMIT PREPARED 'txA'"); err != nil {
 		_, _ = dbA.Exec("ROLLBACK PREPARED 'txA'")
 		_, _ = dbB.Exec("ROLLBACK PREPARED 'txB'")
@@ -209,6 +222,7 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 	fmt.Println("Передача данных завершена успешно, данные на сервере A удалены.")
 }
 
+// Создание БД, таблиц и их наполнение вместе. server - данные серверов для подключения
 func createDataBaseNTables(server string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	if err := createDataBase(server); err != nil {
@@ -222,15 +236,16 @@ func createDataBaseNTables(server string, wg *sync.WaitGroup) {
 
 }
 
+// Основная функция
 func TransferData() {
 	var wg sync.WaitGroup
 
 	serverA := "user=postgres host=localhost port=33555 sslmode=disable"
 	serverB := "user=postgres host=localhost port=33556 sslmode=disable"
-	if err := enablePreparedTransaction(serverA); err != nil {
+	if err := setPreparedTransaction(serverA); err != nil {
 		log.Fatalf("Ошибка настройки сервера A: %v", err)
 	}
-	if err := enablePreparedTransaction(serverB); err != nil {
+	if err := setPreparedTransaction(serverB); err != nil {
 		log.Fatalf("Ошибка настройки сервера Б: %v", err)
 	}
 
@@ -240,20 +255,20 @@ func TransferData() {
 
 	simulateCrash := false
 	var simulateCrashResponse string
-	fmt.Print("Хотите ли вы иммитировать падние сервера А? (y/n): ")
-	fmt.Scanln(&simulateCrashResponse)
+	//fmt.Print("Хотите ли вы иммитировать падние сервера А? (y/n): ")
+	//fmt.Scanln(&simulateCrashResponse)
 	if simulateCrashResponse == "y" {
 		simulateCrash = true
 	}
 	fmt.Println(simulateCrash)
 
-	// Create databases and tables
+	// Заполнение таблиц
 	wg.Add(2)
 	go createDataBaseNTables(serverA, &wg)
 	go createDataBaseNTables(serverB, &wg)
 	wg.Wait()
 
-	// Transfer data using 2PC
+	// Передача данных
 	wg.Add(1)
 	go transferDataWith2PC(serverA, serverB, &wg)
 	wg.Wait()
