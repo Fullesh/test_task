@@ -107,7 +107,7 @@ func createTables(server string) error {
 }
 
 // Наполнение данными только таблицы сервера А
-func dataFill(server string, wg *sync.WaitGroup) {
+func dataFill(server string, serverA string, wg *sync.WaitGroup) {
 	db, err := sql.Open("postgres", server+" dbname=database")
 	if err != nil {
 		log.Fatalf("Ошибка при подключении к БД на сервере %s: %v", server, err)
@@ -115,7 +115,7 @@ func dataFill(server string, wg *sync.WaitGroup) {
 	defer db.Close()
 
 	// Проверяем, что наполняем только сервер А
-	if server == "user=postgres host=localhost port=33555 sslmode=disable" {
+	if server == serverA {
 		for i := 1; i < 10; i++ {
 			fmt.Println("Выполняю команду INSERT INTO Data (value) VALUES ($1) \n")
 			_, err = db.Exec("INSERT INTO Data (value) VALUES ($1)", fmt.Sprintf("Value %d", i))
@@ -233,7 +233,7 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 }
 
 // Создание БД, таблиц и их наполнение вместе. server - данные серверов для подключения
-func createDataBaseNTables(server string, wg *sync.WaitGroup) {
+func createDataBaseNTables(server string, serverA string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	if err := createDataBase(server); err != nil {
 		log.Println(err)
@@ -242,7 +242,7 @@ func createDataBaseNTables(server string, wg *sync.WaitGroup) {
 	if err := createTables(server); err != nil {
 		log.Println(err)
 	}
-	dataFill(server, wg)
+	dataFill(server, serverA, wg)
 
 }
 
@@ -331,8 +331,8 @@ func TransferData() {
 
 	// Заполнение таблиц
 	wg.Add(2)
-	go createDataBaseNTables(serverA, &wg)
-	go createDataBaseNTables(serverB, &wg)
+	go createDataBaseNTables(serverA, serverA, &wg)
+	go createDataBaseNTables(serverB, serverA, &wg)
 	wg.Wait()
 
 	// Передача данных
