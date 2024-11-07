@@ -5,69 +5,70 @@ import (
 	"fmt"
 	_ "github.com/lib/pq" // Драйвер для PostgreSQL
 	"log"
-	"os/exec"
 	"sync"
 )
 
-// Функция для изменения переменной max_prepared_transactions. server - данные для подключения к серверам
-func setPreparedTransaction(server string) error {
-
-	// Открываем подключение к серверу
-	db, err := sql.Open("postgres", server)
-	if err != nil {
-		return fmt.Errorf("Ошибка подключения к серверу %s: %v", server, err)
-	}
-	defer db.Close()
-
-	// Устанавливаем переменную max_prepared_transactions на 8
-	_, err = db.Exec("ALTER SYSTEM SET max_prepared_transactions = 8")
-	if err != nil {
-		return fmt.Errorf("Ошибка изменения max_prepared_transactions на сервере %s: %v", server, err)
-	}
-
-	// Перезагружаем конфигурацию
-	_, err = db.Exec("SELECT pg_reload_conf()")
-	if err != nil {
-		return fmt.Errorf("Ошибка перезагрузки конфигурации на сервере %s: %v", server, err)
-	}
-
-	fmt.Printf("Сервер %s успешно настроен для подготовленных транзакций.\n", server)
-	return nil
-}
-
-// Функция для перезапуска серверов после изменения переменной max_prepared_transactions
-func restartPostgresServer() error {
-	// Стоп сервера А
-	cmd := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_A", "stop")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Printf("Ошибка при остановке сервер: %v, вывод: %s", err, output)
-	}
-
-	// Стоп сервера Б
-	cmdB := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_B", "stop")
-	outputB, err := cmdB.CombinedOutput()
-	if err != nil {
-		fmt.Printf("Ошибка при остановке сервер: %v, вывод: %s", err, outputB)
-	}
-	fmt.Println("Сервера успешно остановлены")
-
-	// Старт сервера А
-	cmdSA := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_A", "-o", "-p33555", "start")
-	if err := cmdSA.Start(); err != nil {
-		return fmt.Errorf("Ошибка при запуске сервера: %v", err)
-	}
-	fmt.Println("Сервер А успешно поднялся")
-
-	// Старт сервера Б
-	cmdSB := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_B", "-o", "-p33556", "start")
-	if err := cmdSB.Start(); err != nil {
-		return fmt.Errorf("Ошибка при запуске сервера: %v", err)
-	}
-	fmt.Println("Сервер Б успешно поднялся")
-
-	return nil
-}
+//// Функция для изменения переменной max_prepared_transactions. server - данные для подключения к серверам
+//func setPreparedTransaction(server string) error {
+//
+//	// Открываем подключение к серверу
+//	db, err := sql.Open("postgres", server)
+//	if err != nil {
+//		return fmt.Errorf("Ошибка подключения к серверу %s: %v", server, err)
+//	}
+//	defer db.Close()
+//
+//	// Устанавливаем переменную max_prepared_transactions на 8
+//	_, err = db.Exec("ALTER SYSTEM SET max_prepared_transactions = 8")
+//	if err != nil {
+//		return fmt.Errorf("Ошибка изменения max_prepared_transactions на сервере %s: %v", server, err)
+//	}
+//
+//	// Перезагружаем конфигурацию
+//	_, err = db.Exec("SELECT pg_reload_conf()")
+//	if err != nil {
+//		return fmt.Errorf("Ошибка перезагрузки конфигурации на сервере %s: %v", server, err)
+//	}
+//
+//	fmt.Printf("Сервер %s успешно настроен для подготовленных транзакций.\n", server)
+//	return nil
+//}
+//
+//// Функция для перезапуска серверов после изменения переменной max_prepared_transactions
+//func restartPostgresServer() error {
+//	// Стоп сервера А
+//	cmd := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_A", "stop")
+//	output, err := cmd.CombinedOutput()
+//	if err != nil {
+//		fmt.Printf("Ошибка при остановке сервер: %v, вывод: %s", err, output)
+//	}
+//
+//	// Стоп сервера Б
+//	cmdB := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_B", "stop")
+//	outputB, err := cmdB.CombinedOutput()
+//	if err != nil {
+//		fmt.Printf("Ошибка при остановке сервер: %v, вывод: %s", err, outputB)
+//	}
+//	fmt.Println("Сервера успешно остановлены")
+//
+//	// Старт сервера А
+//	cmdSA := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_A", "-o", "-p33555", "start")
+//	if err := cmdSA.Start(); err != nil {
+//		return fmt.Errorf("Ошибка при запуске сервера: %v", err)
+//	}
+//	isClusterRunning("C:\\TestDir\\Server_A")
+//	fmt.Println("Сервер А успешно поднялся")
+//
+//	// Старт сервера Б
+//	cmdSB := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_B", "-o", "-p33556", "start")
+//	if err := cmdSB.Start(); err != nil {
+//		return fmt.Errorf("Ошибка при запуске сервера: %v", err)
+//	}
+//	isClusterRunning("C:\\TestDir\\Server_B")
+//	fmt.Println("Сервер Б успешно поднялся")
+//
+//	return nil
+//}
 
 // Создание БД на серверах А и Б
 func createDataBase(server string) error {
@@ -77,6 +78,7 @@ func createDataBase(server string) error {
 	}
 	defer db.Close()
 
+	fmt.Println("Выполняю команду CREATE DATABASE database \n")
 	_, err = db.Exec("CREATE DATABASE database")
 	if err != nil {
 		return fmt.Errorf("Ошибка создания БД на сервере %s: %v", server, err)
@@ -87,14 +89,15 @@ func createDataBase(server string) error {
 
 // Создание таблиц на серверах А и Б
 func createTables(server string) error {
-	// Connect to the newly created database
+	// Подключаемся к созданной БД
 	db, err := sql.Open("postgres", server+" dbname=database")
 	if err != nil {
 		return fmt.Errorf("Ошибка подключения к БД на сервере %s: %v", server, err)
 	}
 	defer db.Close()
 
-	// Attempt to create the table
+	// Создаём таблицу Data
+	fmt.Println("Выполняю команду CREATE TABLE IF NOT EXISTS Data (id SERIAL PRIMARY KEY, value VARCHAR(100)) \n")
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS Data (id SERIAL PRIMARY KEY, value VARCHAR(100))")
 	if err != nil {
 		return fmt.Errorf("Ошибка при создании таблицы на сервере %s: %v", server, err)
@@ -114,6 +117,7 @@ func dataFill(server string, wg *sync.WaitGroup) {
 	// Проверяем, что наполняем только сервер А
 	if server == "user=postgres host=localhost port=33555 sslmode=disable" {
 		for i := 1; i < 10; i++ {
+			fmt.Println("Выполняю команду INSERT INTO Data (value) VALUES ($1) \n")
 			_, err = db.Exec("INSERT INTO Data (value) VALUES ($1)", fmt.Sprintf("Value %d", i))
 			if err != nil {
 				log.Fatalf("Ошибка вставки данных на сервере %s: %v", server, err)
@@ -141,17 +145,20 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 
 	// Начало транзакций на обоих серверах
 	txA, err := dbA.Begin()
+	fmt.Println("Выполняю команду BEGIN на сервере А \n")
 	if err != nil {
 		log.Fatalf("Ошибка начала транзакции на сервере A: %v", err)
 	}
 
 	txB, err := dbB.Begin()
+	fmt.Println("Выполняю команду BEGIN на сервере Б \n")
 	if err != nil {
 		log.Fatalf("Ошибка начала транзакции на сервере B: %v", err)
 	}
 
 	// Подготовка передачи данных
-	rows, err := txA.Query("SELECT id, value FROM Data")
+	fmt.Println("Выполняю команду DELETE FROM Data RETURNING id, value FROM Data \n")
+	rows, err := txA.Query("DELETE FROM Data RETURNING id, value")
 	if err != nil {
 		txA.Rollback()
 		txB.Rollback()
@@ -162,12 +169,12 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 	for rows.Next() {
 		var id int
 		var value string
+		fmt.Println("Выполняю сканирование на сервере А \n")
 		if err := rows.Scan(&id, &value); err != nil {
 			txA.Rollback()
 			txB.Rollback()
 			log.Fatalf("Ошибка сканирования строки на сервере A: %v", err)
 		}
-
 		_, err = txB.Exec("INSERT INTO Data (id, value) VALUES ($1, $2)", id, value)
 		if err != nil {
 			txA.Rollback()
@@ -180,12 +187,14 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 	prepareTxA := "PREPARE TRANSACTION 'txA'"
 	prepareTxB := "PREPARE TRANSACTION 'txB'"
 
+	fmt.Println("Выполняю команду PREPARE TRANSACTION 'txA' на сервере А \n")
 	if _, err := txA.Exec(prepareTxA); err != nil {
 		txA.Rollback()
 		txB.Rollback()
 		log.Fatalf("Ошибка подготовки транзакции на сервере A: %v", err)
 	}
 
+	fmt.Println("Выполняю команду PREPARE TRANSACTION 'txB' на сервере Б \n")
 	if _, err := txB.Exec(prepareTxB); err != nil {
 		txA.Rollback()
 		txB.Rollback()
@@ -202,21 +211,22 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 	}
 
 	// Коммит подготовленных транзакций
+	fmt.Println("Выполняю команду COMMIT PREPARED 'txA' на сервере А \n")
 	if _, err := dbA.Exec("COMMIT PREPARED 'txA'"); err != nil {
+		fmt.Println("ОШИБКА. Выполняю команду ROLLBACK PREPARED 'txA' на сервере А \n")
 		_, _ = dbA.Exec("ROLLBACK PREPARED 'txA'")
+		fmt.Println("ОШИБКА. Выполняю команду ROLLBACK PREPARED 'txB' на сервере Б \n")
 		_, _ = dbB.Exec("ROLLBACK PREPARED 'txB'")
 		log.Fatalf("Ошибка коммита подготовленной транзакции на сервере A: %v", err)
 	}
 
+	fmt.Println("Выполняю команду COMMIT PREPARED 'txB' на сервере Б \n")
 	if _, err := dbB.Exec("COMMIT PREPARED 'txB'"); err != nil {
+		fmt.Println("ОШИБКА. Выполняю команду ROLLBACK PREPARED 'txA' на сервере А \n")
 		_, _ = dbA.Exec("ROLLBACK PREPARED 'txA'")
+		fmt.Println("ОШИБКА. Выполняю команду ROLLBACK PREPARED 'txB' на сервере Б \n")
 		_, _ = dbB.Exec("ROLLBACK PREPARED 'txB'")
 		log.Fatalf("Ошибка коммита подготовленной транзакции на сервере B: %v", err)
-	}
-
-	// Удаление данных с сервера A после успешной передачи
-	if _, err := dbA.Exec("DROP TABLE Data"); err != nil {
-		log.Fatalf("Ошибка удаления данных на сервере A: %v", err)
 	}
 
 	fmt.Println("Передача данных завершена успешно, данные на сервере A удалены.")
@@ -242,16 +252,16 @@ func TransferData() {
 
 	serverA := "user=postgres host=localhost port=33555 sslmode=disable"
 	serverB := "user=postgres host=localhost port=33556 sslmode=disable"
-	if err := setPreparedTransaction(serverA); err != nil {
-		log.Fatalf("Ошибка настройки сервера A: %v", err)
-	}
-	if err := setPreparedTransaction(serverB); err != nil {
-		log.Fatalf("Ошибка настройки сервера Б: %v", err)
-	}
-
-	if err := restartPostgresServer(); err != nil {
-		log.Fatalf("Ошибка перезапуска серверов: %v", err)
-	}
+	//if err := setPreparedTransaction(serverA); err != nil {
+	//	log.Fatalf("Ошибка настройки сервера A: %v", err)
+	//}
+	//if err := setPreparedTransaction(serverB); err != nil {
+	//	log.Fatalf("Ошибка настройки сервера Б: %v", err)
+	//}
+	//
+	//if err := restartPostgresServer(); err != nil {
+	//	log.Fatalf("Ошибка перезапуска серверов: %v", err)
+	//}
 
 	simulateCrash := false
 	var simulateCrashResponse string
