@@ -252,18 +252,15 @@ func TransferData() {
 
 	// Запрос данных для подключения к кластеру сервера A
 	var userA, passwordA, hostA, portA, sslA string
-	fmt.Print("Введите имя пользователя для сервера A: ")
+	fmt.Print("Введите имя пользователя для сервера A (оставьте пустым, если postgres): ")
 	fmt.Scanln(&userA)
 	fmt.Print("Введите пароль для сервера A (оставьте пустым, если не требуется): ")
 	fmt.Scanln(&passwordA)
-	fmt.Print("Введите host для сервера A: ")
+	fmt.Print("Введите host для сервера A (оставьте пустым, если localhost): ")
 	fmt.Scanln(&hostA)
-	if hostA == "" {
-		hostA = "localhost"
-	}
-	fmt.Print("Введите port для сервера A: ")
+	fmt.Print("Введите port для сервера A (оставьте пустым если 5432): ")
 	fmt.Scanln(&portA)
-	fmt.Print("Использовать SSL для сервера A? (y/n): ")
+	fmt.Print("Использовать SSL для сервера A? (y/n) (оставьте пустым, если n): ")
 	fmt.Scanln(&sslA)
 
 	// Запрос данных для подключения к кластеру сервера B
@@ -272,7 +269,7 @@ func TransferData() {
 	fmt.Scanln(&userB)
 	fmt.Print("Введите пароль для сервера B (оставьте пустым, если не требуется): ")
 	fmt.Scanln(&passwordB)
-	fmt.Print("Введите host для сервера B (отсавьте пустым, если localhost): ")
+	fmt.Print("Введите host для сервера B (оставьте пустым, если localhost): ")
 	fmt.Scanln(&hostB)
 	if hostB == "" {
 		hostB = "localhost"
@@ -287,11 +284,29 @@ func TransferData() {
 	if sslA == "y" {
 		sslModeA = "enable"
 	}
+	if hostA == "" {
+		hostA = "localhost"
+	}
+	if userA == "" {
+		userA = "postgres"
+	}
+	if portA == "" {
+		portA = "5432"
+	}
 	serverA := fmt.Sprintf("user=%s password=%s host=%s port=%s sslmode=%s", userA, passwordA, hostA, portA, sslModeA)
 
 	sslModeB := "disable"
 	if sslB == "y" {
 		sslModeB = "enable"
+	}
+	if hostB == "" {
+		hostA = "localhost"
+	}
+	if userB == "" {
+		userA = "postgres"
+	}
+	if portB == "" {
+		portA = "5432"
 	}
 	serverB := fmt.Sprintf("user=%s password=%s host=%s port=%s sslmode=%s", userB, passwordB, hostB, portB, sslModeB)
 	//if err := setPreparedTransaction(serverA); err != nil {
