@@ -250,8 +250,50 @@ func createDataBaseNTables(server string, wg *sync.WaitGroup) {
 func TransferData() {
 	var wg sync.WaitGroup
 
-	serverA := "user=postgres host=localhost port=33555 sslmode=disable"
-	serverB := "user=postgres host=localhost port=33556 sslmode=disable"
+	// Запрос данных для подключения к кластеру сервера A
+	var userA, passwordA, hostA, portA, sslA string
+	fmt.Print("Введите имя пользователя для сервера A: ")
+	fmt.Scanln(&userA)
+	fmt.Print("Введите пароль для сервера A (оставьте пустым, если не требуется): ")
+	fmt.Scanln(&passwordA)
+	fmt.Print("Введите host для сервера A: ")
+	fmt.Scanln(&hostA)
+	if hostA == "" {
+		hostA = "localhost"
+	}
+	fmt.Print("Введите port для сервера A: ")
+	fmt.Scanln(&portA)
+	fmt.Print("Использовать SSL для сервера A? (y/n): ")
+	fmt.Scanln(&sslA)
+
+	// Запрос данных для подключения к кластеру сервера B
+	var userB, passwordB, hostB, portB, sslB string
+	fmt.Print("Введите имя пользователя для сервера B: ")
+	fmt.Scanln(&userB)
+	fmt.Print("Введите пароль для сервера B (оставьте пустым, если не требуется): ")
+	fmt.Scanln(&passwordB)
+	fmt.Print("Введите host для сервера B (отсавьте пустым, если localhost): ")
+	fmt.Scanln(&hostB)
+	if hostB == "" {
+		hostB = "localhost"
+	}
+	fmt.Print("Введите port для сервера B: ")
+	fmt.Scanln(&portB)
+	fmt.Print("Использовать SSL для сервера B? (y/n): ")
+	fmt.Scanln(&sslB)
+
+	// Формирование строк подключения
+	sslModeA := "disable"
+	if sslA == "y" {
+		sslModeA = "enable"
+	}
+	serverA := fmt.Sprintf("user=%s password=%s host=%s port=%s sslmode=%s", userA, passwordA, hostA, portA, sslModeA)
+
+	sslModeB := "disable"
+	if sslB == "y" {
+		sslModeB = "enable"
+	}
+	serverB := fmt.Sprintf("user=%s password=%s host=%s port=%s sslmode=%s", userB, passwordB, hostB, portB, sslModeB)
 	//if err := setPreparedTransaction(serverA); err != nil {
 	//	log.Fatalf("Ошибка настройки сервера A: %v", err)
 	//}
