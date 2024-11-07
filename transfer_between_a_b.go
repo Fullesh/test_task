@@ -260,23 +260,20 @@ func TransferData() {
 	fmt.Scanln(&hostA)
 	fmt.Print("Введите port для сервера A (оставьте пустым если 5432): ")
 	fmt.Scanln(&portA)
-	fmt.Print("Использовать SSL для сервера A? (y/n) (оставьте пустым, если n): ")
+	fmt.Print("Использовать SSL для сервера A? (y/n) (оставьте пустым, если disabled): ")
 	fmt.Scanln(&sslA)
 
 	// Запрос данных для подключения к кластеру сервера B
 	var userB, passwordB, hostB, portB, sslB string
-	fmt.Print("Введите имя пользователя для сервера B: ")
+	fmt.Print("Введите имя пользователя для сервера B (оставьте пустым, если postgres): ")
 	fmt.Scanln(&userB)
 	fmt.Print("Введите пароль для сервера B (оставьте пустым, если не требуется): ")
 	fmt.Scanln(&passwordB)
 	fmt.Print("Введите host для сервера B (оставьте пустым, если localhost): ")
 	fmt.Scanln(&hostB)
-	if hostB == "" {
-		hostB = "localhost"
-	}
-	fmt.Print("Введите port для сервера B: ")
+	fmt.Print("Введите port для сервера B (оставьте пустым если 5432): ")
 	fmt.Scanln(&portB)
-	fmt.Print("Использовать SSL для сервера B? (y/n): ")
+	fmt.Print("Использовать SSL для сервера B? (оставьте пустым, если disabled): ")
 	fmt.Scanln(&sslB)
 
 	// Формирование строк подключения
@@ -300,13 +297,13 @@ func TransferData() {
 		sslModeB = "enable"
 	}
 	if hostB == "" {
-		hostA = "localhost"
+		hostB = "localhost"
 	}
 	if userB == "" {
-		userA = "postgres"
+		userB = "postgres"
 	}
 	if portB == "" {
-		portA = "5432"
+		portB = "5432"
 	}
 	serverB := fmt.Sprintf("user=%s password=%s host=%s port=%s sslmode=%s", userB, passwordB, hostB, portB, sslModeB)
 	//if err := setPreparedTransaction(serverA); err != nil {
