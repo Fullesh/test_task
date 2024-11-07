@@ -166,10 +166,17 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 	}
 	defer rows.Close()
 
+	currentRow := 0
+	totalRows := 0
+	// Дополнительная итерация по значениям. Не оптимально, но работает
 	for rows.Next() {
+		totalRows++
+	}
+	for rows.Next() {
+		currentRow++
 		var id int
 		var value string
-		fmt.Println("Выполняю сканирование на сервере А \n")
+		fmt.Printf("\rВыполняю сканирование на сервере А прогресс (%d/%d) \n", currentRow, totalRows)
 		if err := rows.Scan(&id, &value); err != nil {
 			txA.Rollback()
 			txB.Rollback()
