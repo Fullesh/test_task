@@ -117,7 +117,6 @@ func dataFill(server string, serverA string, wg *sync.WaitGroup) {
 	// Проверяем, что наполняем только сервер А
 	if server == serverA {
 		for i := 1; i < 10; i++ {
-			fmt.Println("Выполняю команду INSERT INTO Data (value) VALUES ($1) \n")
 			_, err = db.Exec("INSERT INTO Data (value) VALUES ($1)", fmt.Sprintf("Value %d", i))
 			if err != nil {
 				log.Fatalf("Ошибка вставки данных на сервере %s: %v", server, err)
@@ -176,7 +175,8 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 		currentRow++
 		var id int
 		var value string
-		fmt.Printf("\rВыполняю сканирование на сервере А прогресс (%d/%d) \n", currentRow, totalRows)
+		fmt.Printf("\rВыполняю сканирование на сервере А прогресс (%d/%d)", currentRow, totalRows)
+		fmt.Println()
 		if err := rows.Scan(&id, &value); err != nil {
 			txA.Rollback()
 			txB.Rollback()
