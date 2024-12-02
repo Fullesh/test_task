@@ -5,10 +5,14 @@ import (
 	"fmt"
 	_ "github.com/lib/pq" // Драйвер для PostgreSQL
 	"log"
+	"net"
+	"os"
+	"strconv"
 	"sync"
+	"time"
 )
 
-//// Функция для изменения переменной max_prepared_transactions. server - данные для подключения к серверам
+// Функция для изменения переменной max_prepared_transactions. server - данные для подключения к серверам
 //func setPreparedTransaction(server string) error {
 //
 //	// Открываем подключение к серверу
@@ -53,17 +57,16 @@ import (
 //
 //	// Старт сервера А
 //	cmdSA := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_A", "-o", "-p33555", "start")
-//	if err := cmdSA.Start(); err != nil {
-//		return fmt.Errorf("Ошибка при запуске сервера: %v", err)
+//	if err := cmdSA.Run(); err != nil {
+//		return fmt.Errorf("Ошибка при запуске сервера A: %v", err)
 //	}
-//	isClusterRunning("C:\\TestDir\\Server_A")
-//	fmt.Println("Сервер А успешно поднялся")
+//	fmt.Println("Сервер A успешно запущен")
 //
-//	// Старт сервера Б
 //	cmdSB := exec.Command("pg_ctl", "-D", "C:\\TestDir\\Server_B", "-o", "-p33556", "start")
-//	if err := cmdSB.Start(); err != nil {
-//		return fmt.Errorf("Ошибка при запуске сервера: %v", err)
+//	if err := cmdSB.Run(); err != nil {
+//		return fmt.Errorf("Ошибка при запуске сервера B: %v", err)
 //	}
+//	fmt.Println("Сервер B успешно запущен")
 //	isClusterRunning("C:\\TestDir\\Server_B")
 //	fmt.Println("Сервер Б успешно поднялся")
 //
@@ -126,8 +129,18 @@ func dataFill(server string, serverA string, wg *sync.WaitGroup) {
 	}
 }
 
-func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
+func transferDataWith2PC(serverA, serverB string, simulateCrash bool, wg *sync.WaitGroup) {
 	defer wg.Done()
+
+	_, portStr, err := net.SplitHostPort(serverB)
+	if err != nil {
+		log.Fatalf("Ошибка при извлечении порта из serverB: %v", err)
+	}
+
+	portB, err := strconv.Atoi(portStr)
+	if err != nil {
+		log.Fatalf("Ошибка при конвертации порта в число: %v", err)
+	}
 
 	// Подключение к обеим базам данных
 	dbA, err := sql.Open("postgres", serverA+" dbname=database")
@@ -165,10 +178,13 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 	}
 	defer rows.Close()
 
+	currentRow := 0
 	for rows.Next() {
+		currentRow++
 		var id int
 		var value string
-		fmt.Println()
+		fmt.Printf("\rВыполняю сканирование строки %d", currentRow)
+		os.Stdout.Sync()
 		if err := rows.Scan(&id, &value); err != nil {
 			txA.Rollback()
 			txB.Rollback()
@@ -200,13 +216,33 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 		log.Fatalf("Ошибка подготовки транзакции на сервере B: %v", err)
 	}
 
-	// Симуляция падения сервера A (не доделано)
-	simulateCrash := false
+	// Симуляция жесткого падения сервера B
 	if simulateCrash {
-		log.Println("Симуляция падения сервера A")
-		_, _ = dbA.Exec("ROLLBACK PREPARED 'txA'")
-		_, _ = dbB.Exec("ROLLBACK PREPARED 'txB'")
-		return
+		fmt.Println("Симуляция жесткого падения сервера B")
+		time.Sleep(5 * time.Second) // Пауза в 5 секунд для имитации падения
+		if err := StopCluster("C:\\TestDir\\Server_B", "localhost", portB); err != nil {
+			log.Fatalf("Ошибка при симуляции падения сервера B: %v", err)
+		}
+		fmt.Println("Сервер B успешно остановлен для симуляции падения.")
+
+		// Попытка поднять сервер B после падения
+		if err := StartCluster("C:\\TestDir\\Server_B", "localhost", portB); err != nil {
+			log.Fatalf("Ошибка при попытке поднять сервер B после падения: %v", err)
+		}
+		fmt.Println("Сервер B успешно перезапущен после симуляции падения.")
+
+		// Проверка, что сервер B запущен
+		for {
+			running, err := isClusterRunning("C:\\TestDir\\Server_B")
+			if err != nil {
+				log.Fatalf("Ошибка при проверке статуса сервера B: %v", err)
+			}
+			if running {
+				break
+			}
+			fmt.Println("Ожидание запуска сервера B...")
+			time.Sleep(1 * time.Second)
+		}
 	}
 
 	// Коммит подготовленных транзакций
@@ -220,12 +256,23 @@ func transferDataWith2PC(serverA, serverB string, wg *sync.WaitGroup) {
 	}
 
 	fmt.Println("Выполняю команду COMMIT PREPARED 'txB' на сервере Б \n")
-	if _, err := dbB.Exec("COMMIT PREPARED 'txB'"); err != nil {
-		fmt.Println("ОШИБКА. Выполняю команду ROLLBACK PREPARED 'txA' на сервере А \n")
-		_, _ = dbA.Exec("ROLLBACK PREPARED 'txA'")
-		fmt.Println("ОШИБКА. Выполняю команду ROLLBACK PREPARED 'txB' на сервере Б \n")
-		_, _ = dbB.Exec("ROLLBACK PREPARED 'txB'")
-		log.Fatalf("Ошибка коммита подготовленной транзакции на сервере B: %v", err)
+	retryCount := 0
+	maxRetries := 5
+	for {
+		_, err := dbB.Exec("COMMIT PREPARED 'txB'")
+		if err == nil {
+			break
+		}
+		if retryCount >= maxRetries {
+			fmt.Println("ОШИБКА. Выполняю команду ROLLBACK PREPARED 'txA' на сервере А \n")
+			_, _ = dbA.Exec("ROLLBACK PREPARED 'txA'")
+			fmt.Println("ОШИБКА. Выполняю команду ROLLBACK PREPARED 'txB' на сервере Б \n")
+			_, _ = dbB.Exec("ROLLBACK PREPARED 'txB'")
+			log.Fatalf("Ошибка коммита подготовленной транзакции на сервере B: %v", err)
+		}
+		fmt.Printf("Ошибка коммита на сервере B, повторная попытка %d...\n", retryCount+1)
+		retryCount++
+		time.Sleep(2 * time.Second)
 	}
 
 	fmt.Println("Передача данных завершена успешно, данные на сервере A удалены.")
@@ -318,8 +365,8 @@ func TransferData() {
 
 	simulateCrash := false
 	var simulateCrashResponse string
-	//fmt.Print("Хотите ли вы иммитировать падние сервера А? (y/n): ")
-	//fmt.Scanln(&simulateCrashResponse)
+	fmt.Print("Хотите ли вы иммитировать падние сервера B? (y/n): ")
+	fmt.Scanln(&simulateCrashResponse)
 	if simulateCrashResponse == "y" {
 		simulateCrash = true
 	}
@@ -333,7 +380,7 @@ func TransferData() {
 
 	// Передача данных
 	wg.Add(1)
-	go transferDataWith2PC(serverA, serverB, &wg)
+	go transferDataWith2PC(serverA, serverB, simulateCrash, &wg)
 	wg.Wait()
 
 	fmt.Println("Все задачи выполнены")
